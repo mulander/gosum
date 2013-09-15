@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/mulander/gosum"
 	"log"
 	"os"
@@ -24,6 +25,10 @@ func main() {
 		}
 		defer src.Close()
 		md5sum.Write(src)
+	}
+	// Output to stdout also
+	for key, value := range md5sum.Entries() {
+		fmt.Printf("%s  %s\n", value, key)
 	}
 	err = md5sum.Close()
 	if err != nil {

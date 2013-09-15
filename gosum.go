@@ -15,6 +15,8 @@ type SumFile interface {
 	// into memory. If the sum file doesn't exist it will
 	// be the target for saving.
 	Open(name string) error
+	// Returns a map of the entries
+	Entries() map[string]string
 	// Add the src file as a new entry in the sum file
 	Write(src *os.File) error
 	// Checks if the specified by name file has the correct
@@ -26,14 +28,14 @@ type SumFile interface {
 }
 
 type MD5Sum struct {
-	SumFile string
-	Entries map[string]string
+	sumFile string
+	entries map[string]string
 }
 
 func NewMD5Sum() SumFile {
 	return &MD5Sum{
-		SumFile: "",
-		Entries: make(map[string]string),
+		sumFile: "",
+		entries: make(map[string]string),
 	}
 }
 
@@ -49,14 +51,18 @@ func (m *MD5Sum) Open(name string) error {
 		for digests.Scan() {
 			entry := strings.Split(digests.Text(), "  ")
 			digest, name := entry[0], entry[1]
-			m.Entries[name] = digest
+			m.entries[name] = digest
 		}
 		if err := digests.Err(); err != nil {
 			return err
 		}
 	}
-	m.SumFile = name
+	m.sumFile = name
 	return nil
+}
+
+func (m *MD5Sum) Entries() map[string]string {
+	return m.entries
 }
 
 func (m *MD5Sum) digest(src *os.File) string {
@@ -77,17 +83,17 @@ func (m *MD5Sum) Write(src *os.File) error {
 	if name == "stdin" {
 		name = "-"
 	}
-	m.Entries[name] = md5sum
+	m.entries[name] = md5sum
 	return nil
 }
 
 func (m *MD5Sum) Close() error {
-	dst, err := os.Create(m.SumFile)
+	dst, err := os.Create(m.sumFile)
 	if err != nil {
 		return err
 	}
 	defer dst.Close()
-	for name, digest := range m.Entries {
+	for name, digest := range m.entries {
 		dst.Write([]byte(fmt.Sprintf("%s  %s\n", digest, name)))
 	}
 	return nil
@@ -99,7 +105,7 @@ func (m *MD5Sum) Check(name string) (bool, error) {
 		return false, err
 	}
 
-	digest, _ := m.Entries[name]
+	digest, _ := m.entries[name]
 
 	hash := m.digest(src)
 	return hash == digest, err
