@@ -45,7 +45,7 @@ func (m *MD5Sum) Open(name string) error {
 		if err != nil {
 			return err
 		}
-		src.Close()
+		defer src.Close()
 
 		digests := bufio.NewScanner(src)
 		for digests.Scan() {
