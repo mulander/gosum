@@ -94,7 +94,7 @@ func (m *MD5Sum) Read(p []byte) (n int, err error) {
 	}
 	n, err = m.reader.Read(p)
 	if err == io.EOF {
-		m.reader.Reset()
+		m.reader = nil
 	}
 	return n, err
 }
