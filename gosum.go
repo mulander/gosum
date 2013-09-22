@@ -30,6 +30,7 @@ type SumFile interface {
 
 type MD5Sum struct {
 	entries map[string]string
+	reader  *bytes.Buffer
 }
 
 func NewMD5Sum() SumFile {
@@ -63,7 +64,6 @@ func (m *MD5Sum) Write(p []byte) (n int, err error) {
 }
 
 func (m *MD5Sum) ReadFrom(src io.Reader) (n int64, err error) {
-	fmt.Println("READ FROM CALLED")
 	digests := bufio.NewScanner(src)
 	for digests.Scan() {
 		n += int64(len(digests.Text()))
@@ -85,11 +85,18 @@ func (m *MD5Sum) Add(name string, src io.Reader) error {
 }
 
 func (m *MD5Sum) Read(p []byte) (n int, err error) {
-	var buffer bytes.Buffer
-	for name, digest := range m.entries {
-		buffer.Write([]byte(fmt.Sprintf("%s  %s\n", digest, name)))
+	if m.reader == nil {
+		var buffer bytes.Buffer
+		for name, digest := range m.entries {
+			buffer.Write([]byte(fmt.Sprintf("%s  %s\n", digest, name)))
+		}
+		m.reader = &buffer
 	}
-	return buffer.Read(p)
+	n, err = m.reader.Read(p)
+	if err == io.EOF {
+		m.reader.Reset()
+	}
+	return n, err
 }
 
 func (m *MD5Sum) WriteTo(w io.Writer) (n int64, err error) {
