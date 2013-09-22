@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/mulander/gosum"
+	"io"
 	"log"
 	"os"
 )
@@ -11,9 +11,16 @@ import (
 func main() {
 	flag.Parse()
 	md5sum := gosum.NewMD5Sum()
-	err := md5sum.Open("test.md5sum")
+
+	log.Println("Current contents of test.md5sum:")
+	current := gosum.NewMD5Sum()
+	fileSum, err := os.Open("test.md5sum")
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Can't open test.md5sum")
+	} else {
+		io.Copy(current, fileSum)
+		io.Copy(os.Stdout, current)
+		fileSum.Close()
 	}
 
 	log.Printf("%q", flag.Args())
@@ -24,14 +31,20 @@ func main() {
 			log.Fatal(err)
 		}
 		defer src.Close()
-		md5sum.Write(src)
+		fileinfo, err := src.Stat()
+		name := fileinfo.Name()
+		if name == "stdin" {
+			name = "-"
+		}
+		md5sum.Add(name, src)
 	}
-	// Output to stdout also
-	for key, value := range md5sum.Entries() {
-		fmt.Printf("%s  %s\n", value, key)
-	}
-	err = md5sum.Close()
+
+	io.Copy(os.Stdout, md5sum)
+	dst, err := os.Create("test.md5sum")
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer dst.Close()
+	io.Copy(dst, md5sum)
+
 }
